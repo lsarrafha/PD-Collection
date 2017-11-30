@@ -201,7 +201,7 @@ def plot_clustergram(dataframe, filter_rows=True, filter_rows_by='var', filter_r
     return net.widget()
 
 ##############################################################
-############# 10. Clustergrammer (with colors)
+############# 10. Clustergrammer (with colors) - In progress
 ##############################################################
 
 def get_clustergrammer_cats(sample_metadata_dataframe):
@@ -225,13 +225,16 @@ def clustergram_test(dataframe, filter_rows=True, filter_rows_by='var', filter_r
 
 
 ##############################################################
-############# 11 DEG Calculations (Lily)
+############# 11. DEG Calculations (Lily)
 ##############################################################
+
+import sys
+sys.path.append('scripts')
 
 def compute_degs(dataframe, samples, controls):
 
     # Connect to R
-    r.source('code_library.R')
+    r.source('scripts/code_library.R')
     pandas2ri.activate()
 
     # Create design dict
@@ -239,7 +242,6 @@ def compute_degs(dataframe, samples, controls):
 
     # Create design dataframe
     design_dataframe = pd.DataFrame({group_label: {sample:int(sample in group_samples) for sample in dataframe.columns} for group_label, group_samples in sample_dict.items()})
-    print(design_dataframe)
 
     # Convert to R
     dataframe_r = pandas2ri.py2ri(dataframe)
@@ -253,3 +255,59 @@ def compute_degs(dataframe, samples, controls):
 
     # Add
     return signature_dataframe
+
+
+##############################################################
+############# 12. MA plot for limma
+##############################################################
+
+def plot_MA(dataframe, x, y):
+    trace = go.Scattergl(
+        x = x,
+        y = y,
+        mode = 'markers',
+        hoverinfo = 'text',
+        text = ['<span style="font-size: 12pt; color: white; text-decoration: underline; text-align: center; font-weight: 600;">'+gene_symbol+'</span>'+'<br>logFC='+str(round(rowData['logFC'], ndigits=2))+'<br>p value='+"{:.2E}".format(rowData['adj.P.Val'])+'<br>Avg Exp='+str(round(rowData['AveExpr'], ndigits=2)) for gene_symbol, rowData in dataframe.iterrows()],
+        marker = dict(
+            line = dict(
+                width = 1, 
+                color = '#404040')
+        )
+    )
+
+    data = [trace]
+
+    layout = go.Layout(title = 'Limma Results')
+    fig = dict(data=data, layout=layout)
+    fig['layout']['xaxis'] = dict(title='AveExpr')
+    fig['layout']['yaxis'] = dict(title='logFC')
+    iplot(fig)
+
+
+##############################################################
+############# 13. Volcano plot for limma
+##############################################################
+
+def limma_log = -np.log10(dataframe['adj.P.Val'])
+    
+
+def plot_volcano(dataframe, x, y:
+        trace = go.Scattergl(
+        x = x,
+        y = y,
+        mode = 'markers',
+        hoverinfo = 'text',
+        text = limma_dataframe.index,
+        marker = dict(
+            line = dict(
+                width = 1, 
+                color = '#404040')
+        )
+    )
+
+    data = [trace]
+    layout = dict(title = 'Limma Results')
+    fig = dict(data=data, layout={})
+    fig['layout']['xaxis'] = dict(title='logFC')
+    fig['layout']['yaxis'] = dict(title='adj.P.Val (log10)')
+    iplot(fig)
