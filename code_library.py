@@ -288,16 +288,13 @@ def plot_MA(dataframe, x, y):
 ############# 13. Volcano plot for limma
 ##############################################################
 
-def limma_log = -np.log10(dataframe['adj.P.Val'])
-    
-
-def plot_volcano(dataframe, x, y:
-        trace = go.Scattergl(
+def plot_volcano(dataframe, x, y):
+    trace = go.Scattergl(
         x = x,
         y = y,
         mode = 'markers',
         hoverinfo = 'text',
-        text = limma_dataframe.index,
+        text = ['<span style="font-size: 12pt; color: white; text-decoration: underline; text-align: center; font-weight: 600;">'+gene_symbol+'</span>'+'<br>logFC='+str(round(rowData['logFC'], ndigits=2))+'<br>p value='+"{:.2E}".format(rowData['adj.P.Val'])+'<br>Avg Exp='+str(round(rowData['AveExpr'], ndigits=2)) for gene_symbol, rowData in dataframe.iterrows()],
         marker = dict(
             line = dict(
                 width = 1, 
