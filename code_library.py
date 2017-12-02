@@ -47,7 +47,7 @@ def sample_barchart(dataframe):
     plt.title('Sample Sum Values', fontsize=20)
     plt.xlabel('Samples', fontsize=15)
     plt.ylabel('Sum', fontsize=15)
-    sample_sum.plot.bar(figsize=[15,9])
+    sample_sum.plot.bar(figsize=[14,9], color='b')
 
 ##############################################################
 ########## 4. Gene median distribution (histogram)
@@ -56,7 +56,7 @@ def sample_barchart(dataframe):
 def gene_histogram(dataframe):
     display(Markdown('**Histogram** <br> Then, we calculate the median values for each gene in log scale and plot the results in a histogram.'))
     gene_median=dataframe.median(axis=1)
-    np.log10(gene_median+1).plot(kind='hist', bins=50, color='b', log=True, figsize=[15,9])
+    np.log10(gene_median+1).plot(kind='hist', bins=50, color='b', log=True, figsize=[14,9])
     plt.rcParams['figure.figsize']
     plt.title('Gene Median Distribution', fontsize=20)
     plt.xlabel('Gene Median', fontsize=15)
@@ -262,6 +262,7 @@ def compute_degs(dataframe, samples, controls):
 ##############################################################
 
 def plot_MA(dataframe, x, y):
+    display(Markdown('**MA Plot** <br> The results from limma analysis can be visualized using an MA plot, in which the average expression values are on the x-axis and the logFC values on the y-axis.'))
     trace = go.Scattergl(
         x = x,
         y = y,
@@ -289,6 +290,8 @@ def plot_MA(dataframe, x, y):
 ##############################################################
 
 def plot_volcano(dataframe, x, y):
+    display(Markdown('**Volcano Plot** <br> We can also display the same results using a Volcano plot, in which the logFC values are on the x-axis and the log10-transformed adjusted p-values on the y-axis.'))
+
     trace = go.Scattergl(
         x = x,
         y = y,
