@@ -66,7 +66,7 @@ def gene_histogram(dataframe):
 ############# 5. 3D PCA plot
 ##############################################################
 
-def plot_pca_3d(dataframe, size=20, color_by_categorical=None, color_by_continuous=None, colorscale="Viridis", showscale=True, colors=['red', 'blue', 'orange', 'purple', 'turkey', 'chicken', 'thanksigiving']):
+def plot_pca_3d(dataframe, size=20, color_by_categorical=None, color_by_continuous=None, colorscale="Viridis", showscale=True, colors=['red', 'blue', 'orange', 'purple', 'green', 'purple', 'yellow']):
     display(Markdown('**3D PCA Plot** <br> We will then normalize the data and calculate the z-score to represent the 500 most variable genes in a 3D PCA plot.'))
     width=900
     height=600
@@ -231,7 +231,7 @@ def clustergram_test(dataframe, filter_rows=True, filter_rows_by='var', filter_r
 import sys
 sys.path.append('scripts')
 
-def compute_degs(dataframe, samples, controls):
+def compute_degs(dataframe, method, samples, controls):
 
     # Connect to R
     r.source('scripts/code_library.R')
@@ -248,7 +248,12 @@ def compute_degs(dataframe, samples, controls):
     design_dataframe_r = pandas2ri.py2ri(design_dataframe)
 
     # Run
-    signature_dataframe_r = r.apply_limma(dataframe_r, design_dataframe_r)
+    if method == 'CD':
+        signature_dataframe_r = r.apply_characteristic_direction(dataframe_r, design_dataframe_r)
+    elif method == 'limma':
+        signature_dataframe_r = r.apply_limma(dataframe_r, design_dataframe_r)
+    else:
+        raise ValueError('Wrong method supplied.  Must be limma or CD.')
 
     # Convert to pandas and sort
     signature_dataframe = pandas2ri.ri2py(signature_dataframe_r)
@@ -258,17 +263,16 @@ def compute_degs(dataframe, samples, controls):
 
 
 ##############################################################
-############# 12. MA plot for limma
+############# 12. 2D Scatter Plot
 ##############################################################
 
-def plot_MA(dataframe, x, y):
-    display(Markdown('**MA Plot** <br> The results from limma analysis can be visualized using an MA plot, in which the average expression values are on the x-axis and the logFC values on the y-axis.'))
+def plot_2D_scatter(x, y, text='', title='', xlabel='', ylabel=''):
     trace = go.Scattergl(
         x = x,
         y = y,
         mode = 'markers',
         hoverinfo = 'text',
-        text = ['<span style="font-size: 12pt; color: white; text-decoration: underline; text-align: center; font-weight: 600;">'+gene_symbol+'</span>'+'<br>logFC='+str(round(rowData['logFC'], ndigits=2))+'<br>p value='+"{:.2E}".format(rowData['adj.P.Val'])+'<br>Avg Exp='+str(round(rowData['AveExpr'], ndigits=2)) for gene_symbol, rowData in dataframe.iterrows()],
+        text = text,
         marker = dict(
             line = dict(
                 width = 1, 
@@ -278,36 +282,129 @@ def plot_MA(dataframe, x, y):
 
     data = [trace]
 
-    layout = go.Layout(title = 'Limma Results')
+    layout = go.Layout(title = title)
     fig = dict(data=data, layout=layout)
-    fig['layout']['xaxis'] = dict(title='AveExpr')
-    fig['layout']['yaxis'] = dict(title='logFC')
+    fig['layout']['xaxis'] = dict(title=xlabel)
+    fig['layout']['yaxis'] = dict(title=ylabel)
     iplot(fig)
 
+##############################################################
+############# 13. MA plot for limma
+##############################################################
+
+def plot_MA(dataframe, title):
+    display(Markdown('**MA Plot** <br> The results from limma analysis can be visualized using an MA plot, in which the average expression values are on the x-axis and the logFC values on the y-axis.'))
+    plot_2D_scatter(dataframe['AveExpr'], dataframe['logFC'], 
+                    text = ['<span style="font-size: 12pt; color: white; text-decoration: underline; text-align: center; font-weight: 600;">'+gene_symbol+'</span>'+'<br>logFC='+str(round(rowData['logFC'], ndigits=2))+'<br>p value='+"{:.2E}".format(rowData['adj.P.Val'])+'<br>Avg Exp='+str(round(rowData['AveExpr'], ndigits=2)) for gene_symbol, rowData in dataframe.iterrows()], 
+                    title = title, xlabel='AveExpr', ylabel='logFC')
 
 ##############################################################
-############# 13. Volcano plot for limma
+############# 14. Volcano plot for limma
 ##############################################################
 
-def plot_volcano(dataframe, x, y):
+def plot_volcano(dataframe, title):
     display(Markdown('**Volcano Plot** <br> We can also display the same results using a Volcano plot, in which the logFC values are on the x-axis and the log10-transformed adjusted p-values on the y-axis.'))
+    limma_log = -np.log10(dataframe['adj.P.Val'])
+    plot_2D_scatter(dataframe['logFC'], limma_log, 
+                    text = ['<span style="font-size: 12pt; color: white; text-decoration: underline; text-align: center; font-weight: 600;">'+gene_symbol+'</span>'+'<br>logFC='+str(round(rowData['logFC'], ndigits=2))+'<br>p value='+"{:.2E}".format(rowData['adj.P.Val'])+'<br>Avg Exp='+str(round(rowData['AveExpr'], ndigits=2)) for gene_symbol, rowData in dataframe.iterrows()],
+                    title = title, xlabel='logFC', ylabel='adj.P.Val(log10)')
 
-    trace = go.Scattergl(
-        x = x,
-        y = y,
-        mode = 'markers',
-        hoverinfo = 'text',
-        text = ['<span style="font-size: 12pt; color: white; text-decoration: underline; text-align: center; font-weight: 600;">'+gene_symbol+'</span>'+'<br>logFC='+str(round(rowData['logFC'], ndigits=2))+'<br>p value='+"{:.2E}".format(rowData['adj.P.Val'])+'<br>Avg Exp='+str(round(rowData['AveExpr'], ndigits=2)) for gene_symbol, rowData in dataframe.iterrows()],
-        marker = dict(
-            line = dict(
-                width = 1, 
-                color = '#404040')
-        )
-    )
+##############################################################
+############# 15. Volcano plot for limma
+##############################################################
 
-    data = [trace]
-    layout = dict(title = 'Limma Results')
-    fig = dict(data=data, layout={})
-    fig['layout']['xaxis'] = dict(title='logFC')
-    fig['layout']['yaxis'] = dict(title='adj.P.Val (log10)')
-    iplot(fig)
+def plot_cd(dataframe, title):
+    display(Markdown('**Volcano Plot** <br> We can also display the same results using a Volcano plot, in which the logFC values are on the x-axis and the log10-transformed adjusted p-values on the y-axis.'))
+    limma_log = -np.log10(dataframe['adj.P.Val'])
+    plot_2D_scatter(dataframe['CD'], dataframe['logFC'], 
+                    text = ['<span style="font-size: 12pt; color: white; text-decoration: underline; text-align: center; font-weight: 600;">'+gene_symbol+'</span>'+'<br>logFC='+str(round(rowData['logFC'], ndigits=2))+'<br>p value='+"{:.2E}".format(rowData['adj.P.Val'])+'<br>Avg Exp='+str(round(rowData['AveExpr'], ndigits=2)) for gene_symbol, rowData in dataframe.iterrows()], 
+                    title = title, xlabel='logFC', ylabel='adj.P.Val(log10)')
+
+##############################################################
+############# 16. Run Enrichment Analysis
+##############################################################
+
+import json
+import requests
+
+def extract_genesets(signature_dataframe, limma=True, sort_by='CD', nr_genes=500, logFC=2, p_value=0.05): 
+    if limma == True:
+        sort_by=None 
+        upregulated = dataframe.query('logFC > 2 and adjPval < 0.05').index.tolist()
+        downregulated = dataframe.query('logFC < -2 & adjPval < 0.05').index.tolist()
+    else:
+        sort_by='CD'
+        top_genes = dataframe['CD'].sort_values(ascending=False).index.tolist()[:nr_genes]
+        
+    genesets = {'upregulated': upregulated_genes, 'downregulated': downregulated_genes}
+    return genesets
+
+def run_enrichr(dataframe, genesets):
+# Run Enrichr for upregulated genes
+    ENRICHR_URL = 'http://amp.pharm.mssm.edu/Enrichr/addList'
+    genes_str = '\n'.join(upregulated_genes)
+    description = 'Example gene list'
+    payload = {
+        'list': (None, genes_str),
+        'description': (None, description)
+    }
+
+    response = requests.post(ENRICHR_URL, files=payload)
+    if not response.ok:
+        raise Exception('Error analyzing gene list')
+
+    data = json.loads(response.text)
+    print(data)
+
+# Run Enrichr for downregulated genes
+    ENRICHR_URL = 'http://amp.pharm.mssm.edu/Enrichr/addList'
+    genes_str = '\n'.join(downregulated_genes)
+    description = 'Example gene list'
+    payload = {
+        'list': (None, genes_str),
+        'description': (None, description)
+    }
+
+    response = requests.post(ENRICHR_URL, files=payload)
+    if not response.ok:
+        raise Exception('Error analyzing gene list')
+
+    data = json.loads(response.text)
+    print(data)
+
+# Run Enrichr for top 500 genes
+    ENRICHR_URL = 'http://amp.pharm.mssm.edu/Enrichr/addList'
+    genes_str = '\n'.join(top_genes)
+    description = 'Example gene list'
+    payload = {
+        'list': (None, genes_str),
+        'description': (None, description)
+    }
+
+    response = requests.post(ENRICHR_URL, files=payload)
+    if not response.ok:
+        raise Exception('Error analyzing gene list')
+
+    data = json.loads(response.text)
+    print(data)
+
+    
+
+
+
+    sample_dict = {'samples': samples, 'controls': controls}
+
+    # Create design dataframe
+    design_dataframe = pd.DataFrame({group_label: {sample:int(sample in group_samples) for sample in dataframe.columns} for group_label, group_samples in sample_dict.items()})
+
+
+
+
+
+
+
+
+
+
+
+ 
