@@ -1,4 +1,4 @@
-##############################################################
+ ##############################################################
 ##############################################################
 ############ Parkinson's Disease Analysis Support ############
 ##############################################################
@@ -327,84 +327,108 @@ def plot_cd(dataframe, title):
 import json
 import requests
 
-def extract_genesets(signature_dataframe, limma=True, sort_by='CD', nr_genes=500, logFC=2, p_value=0.05): 
+def extract_genesets(dataframe, limma=True, sort_by='CD', nr_genes=500, logFC=2, p_value=0.05): 
     if limma == True:
-        sort_by=None 
-        upregulated = dataframe.query('logFC > 2 and adjPval < 0.05').index.tolist()
-        downregulated = dataframe.query('logFC < -2 & adjPval < 0.05').index.tolist()
+        upregulated = dataframe.query('logFC > {logFC} & adjPVal < {p_value}'.format(**locals())).index.tolist()
+        # This is an alternate approach: upregulated = dataframe[(dataframe['logFC'] > logFC) & (dataframe['adjPVal'] < p_value)]
+        downregulated = dataframe.query('logFC < -{logFC} & adjPVal < {p_value}'.format(**locals())).index.tolist()
     else:
-        sort_by='CD'
-        top_genes = dataframe['CD'].sort_values(ascending=False).index.tolist()[:nr_genes]
-        
-    genesets = {'upregulated': upregulated_genes, 'downregulated': downregulated_genes}
+        ranked_genes = dataframe['CD'].sort_values(ascending=False).index.tolist()
+        upregulated = ranked_genes[:nr_genes]
+        downregulated = ranked_genes[-nr_genes:]
+    genesets = {'upregulated': upregulated, 'downregulated': downregulated}
     return genesets
 
-def run_enrichr(dataframe, genesets):
-# Run Enrichr for upregulated genes
-    ENRICHR_URL = 'http://amp.pharm.mssm.edu/Enrichr/addList'
-    genes_str = '\n'.join(upregulated_genes)
-    description = 'Example gene list'
-    payload = {
-        'list': (None, genes_str),
-        'description': (None, description)
-    }
+def submit_enrichr_geneset(genesets):
+    # Initialize results
+    enrichr_results = {}
 
-    response = requests.post(ENRICHR_URL, files=payload)
-    if not response.ok:
-        raise Exception('Error analyzing gene list')
+    # Loop through genesets
+    for label, geneset in genesets.items():
+        # Run Enrichr for upregulated and downregulated genes
+        ENRICHR_URL = 'http://amp.pharm.mssm.edu/Enrichr/addList'
+        genes_str = '\n'.join(geneset)
+        payload = {
+            'list': (None, genes_str),
+        }
 
-    data = json.loads(response.text)
-    print(data)
+        response = requests.post(ENRICHR_URL, files=payload)
+        if not response.ok:
+            raise Exception('Error analyzing gene list')
 
-# Run Enrichr for downregulated genes
-    ENRICHR_URL = 'http://amp.pharm.mssm.edu/Enrichr/addList'
-    genes_str = '\n'.join(downregulated_genes)
-    description = 'Example gene list'
-    payload = {
-        'list': (None, genes_str),
-        'description': (None, description)
-    }
+        data = json.loads(response.text)
+        enrichr_results[label] = data
 
-    response = requests.post(ENRICHR_URL, files=payload)
-    if not response.ok:
-        raise Exception('Error analyzing gene list')
-
-    data = json.loads(response.text)
-    print(data)
-
-# Run Enrichr for top 500 genes
-    ENRICHR_URL = 'http://amp.pharm.mssm.edu/Enrichr/addList'
-    genes_str = '\n'.join(top_genes)
-    description = 'Example gene list'
-    payload = {
-        'list': (None, genes_str),
-        'description': (None, description)
-    }
-
-    response = requests.post(ENRICHR_URL, files=payload)
-    if not response.ok:
-        raise Exception('Error analyzing gene list')
-
-    data = json.loads(response.text)
-    print(data)
-
-    
+    return enrichr_results
 
 
-
-    sample_dict = {'samples': samples, 'controls': controls}
-
-    # Create design dataframe
-    design_dataframe = pd.DataFrame({group_label: {sample:int(sample in group_samples) for sample in dataframe.columns} for group_label, group_samples in sample_dict.items()})
-
-
-
-
-
-
-
-
-
-
+    #Write a for loop for the userListId in the dictionary
+def dict_forloop(enrichr_results):
+    subset_dict = {downregulated: {upregulated: v2 for upregulated, v2 in v1.items() if upregulated == 'userListId'} for downregulated, v1 in enrichr_results.items()}
+    for downregulated, v1 in subset_dict.items():
+        userlistid = ""
+        userlistid += downregulated
+        for upregulated, v2 in v1.items():
+            userlistid = userlistid + " " + str(v2)
+        print(userlistid)
 
  
+import qgrid
+def get_enrichment_results(user_list_id, gene_set_libraries=['GO_Biological_Process_2017b', 'GO_Molecular_Function_2017b', 'GO_Cellular_Component_2017b']):
+    ENRICHR_URL = 'http://amp.pharm.mssm.edu/Enrichr/enrich'
+    query_string = '?userListId=%s&backgroundType=%s'
+    results = []
+    for gene_set_library in gene_set_libraries:
+        response = requests.get(
+            ENRICHR_URL + query_string % (user_list_id, gene_set_library)
+         )
+        if not response.ok:
+            raise Exception('Error fetching enrichment results')
+
+        data = json.loads(response.text)
+        enrichmentDataframe = pd.DataFrame(data[gene_set_library], columns=['rank', 'term_name', 'pvalue', 'zscore', 'combined_score', 'overlapping_genes', 'FDR', 'old_pvalue', 'old_FDR'])
+        enrichmentDataframe = enrichmentDataframe.loc[:,['term_name','zscore','combined_score','pvalue', 'FDR']]
+        enrichmentDataframe['geneset_library'] = gene_set_library
+        results.append(enrichmentDataframe)
+    resultDataframe = pd.concat(results).sort_values('pvalue')
+    widget = qgrid.QGridWidget(df=resultDataframe.set_index('term_name').drop(['zscore', 'combined_score'], axis=1))
+    return widget
+
+
+########################################################
+
+# Combine the 3 codes above
+def run_enrichr(dataframe):
+    # Extract genesets
+    genesets = extract_genesets(dataframe)
+
+    # Submit genesets to enrichr
+    enrichr_results = submit_enrichr_geneset(genesets)
+
+    # Define an empty list
+    empty_list = []
+
+    # # Loop through the enrichr IDs (the looooong ones)
+
+    # userlistid = dict_forloop(enrichr_results)
+    for key, value in enrichr_results.items():
+
+        # For each ID, get the enrichment results
+        results = get_enrichment_results(enrichr_results[key]['userListId'])
+        print (results)
+
+    #     # Add the 'upregulated' or 'downregulated' label to the enrichment results
+
+    #     # Append the enrichment results to the empty list defined above
+    #     my_results = empty_list.append(results)
+
+    # # For each enrichment result, add a column specfiying the genesets it belongs to (upregulated or downregulated)
+    # specify_results = my_results.assign(specify_geneset = [upregulated, downregulated])
+    
+    # # Concatenate the two using pd.concat() => should come before specifying the datasets?
+    # resultDataframe = pd.concat([results, specify_results])
+
+    # Display a widget using Qgrid as a result
+    # widget = qgrid.QGridWidget(df=resultDataframe.set_index('term_name').drop(['zscore', 'combined_score'], axis=1))
+    # return widget
+    # pass
