@@ -391,11 +391,12 @@ def get_enrichment_results(user_list_id, gene_set_libraries=['GO_Biological_Proc
         enrichmentDataframe['geneset_library'] = gene_set_library
         results.append(enrichmentDataframe)
     resultDataframe = pd.concat(results).sort_values('pvalue')
-    widget = qgrid.QGridWidget(df=resultDataframe.set_index('term_name').drop(['zscore', 'combined_score'], axis=1))
-    return widget
+    # widget = qgrid.QGridWidget(df=resultDataframe.set_index('term_name').drop(['zscore', 'combined_score'], axis=1))
+    return resultDataframe
 
 
 ########################################################
+
 
 # Combine the 3 codes above
 def run_enrichr(dataframe):
@@ -404,9 +405,11 @@ def run_enrichr(dataframe):
 
     # Submit genesets to enrichr
     enrichr_results = submit_enrichr_geneset(genesets)
+    display(Markdown('Link to Enrichr results for upregulated geneset: http://amp.pharm.mssm.edu/Enrichr/enrich?dataset={shortId}'.format(**enrichr_results['upregulated'])))
+    display(Markdown('Link to Enrichr results for downregulated geneset: http://amp.pharm.mssm.edu/Enrichr/enrich?dataset={shortId}'.format(**enrichr_results['downregulated'])))
 
     # Define an empty list
-    empty_list = []
+    my_results = []
 
     # # Loop through the enrichr IDs (the looooong ones)
 
@@ -414,21 +417,22 @@ def run_enrichr(dataframe):
     for key, value in enrichr_results.items():
 
         # For each ID, get the enrichment results
-        results = get_enrichment_results(enrichr_results[key]['userListId'])
-        print (results)
+        results = get_enrichment_results(value['userListId'])
+        results['geneset'] = key
 
-    #     # Add the 'upregulated' or 'downregulated' label to the enrichment results
-
-    #     # Append the enrichment results to the empty list defined above
-    #     my_results = empty_list.append(results)
-
-    # # For each enrichment result, add a column specfiying the genesets it belongs to (upregulated or downregulated)
-    # specify_results = my_results.assign(specify_geneset = [upregulated, downregulated])
+    # add column with geneset label 
+    # Add the 'upregulated' or 'downregulated' label to the enrichment results  
+    # results.insert(6, 'genesets', 'downregulated')
+    # results.loc[3946:, 'genesets'] = 'upregulated'  
     
-    # # Concatenate the two using pd.concat() => should come before specifying the datasets?
-    # resultDataframe = pd.concat([results, specify_results])
+
+    # Append the enrichment results to the empty list defined above
+    my_results.append(results)
+
+    
+    # Concatenate the two using pd.concat() => should come before specifying the datasets?
+    resultDataframe = pd.concat(my_results)
 
     # Display a widget using Qgrid as a result
-    # widget = qgrid.QGridWidget(df=resultDataframe.set_index('term_name').drop(['zscore', 'combined_score'], axis=1))
-    # return widget
-    # pass
+    widget = qgrid.QGridWidget(df=resultDataframe.set_index('term_name').drop(['zscore', 'combined_score'], axis=1))
+    return widget
