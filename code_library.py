@@ -41,13 +41,13 @@ def generate_figure_legend(figure_number, description):
 ##############################################################
 
 def sample_barchart(dataframe):
-    display(Markdown('**Bar Chart** <br> First, we calculate the sum values for each sample and plot the results in a bar chart.'))
+    display(Markdown('**Bar Chart** <br> First, we calculate the sum of the raw counts for each sample and plot the results in a bar chart.'))
     sample_sum=dataframe.sum(axis=0)
     plt.rcParams['figure.figsize']
     plt.title('Sample Sum Values', fontsize=20)
     plt.xlabel('Samples', fontsize=15)
     plt.ylabel('Sum', fontsize=15)
-    sample_sum.plot.bar(figsize=[14,9], color='b')
+    sample_sum.plot.bar(figsize=[14,9], color='#cea3cd')
 
 ##############################################################
 ########## 4. Gene median distribution (histogram)
@@ -56,7 +56,7 @@ def sample_barchart(dataframe):
 def gene_histogram(dataframe):
     display(Markdown('**Histogram** <br> Then, we calculate the median values for each gene in log scale and plot the results in a histogram.'))
     gene_median=dataframe.median(axis=1)
-    np.log10(gene_median+1).plot(kind='hist', bins=50, color='b', log=True, figsize=[14,9])
+    np.log10(gene_median+1).plot(kind='hist', bins=50, color='#cea3cd', log=True, figsize=[14,9])
     plt.rcParams['figure.figsize']
     plt.title('Gene Median Distribution', fontsize=20)
     plt.xlabel('Gene Median', fontsize=15)
@@ -66,8 +66,8 @@ def gene_histogram(dataframe):
 ############# 5. 3D PCA plot
 ##############################################################
 
-def plot_pca_3d(dataframe, size=20, color_by_categorical=None, color_by_continuous=None, colorscale="Viridis", showscale=True, colors=['red', 'blue', 'orange', 'purple', 'green', 'purple', 'yellow']):
-    display(Markdown('**3D PCA Plot** <br> We will then normalize the data and calculate the z-score to represent the 500 most variable genes in a 3D PCA plot.'))
+def plot_pca_3d(dataframe, size=20, color_by_categorical=None, color_by_continuous=None, colorscale="Viridis", showscale=True, colors=['#cea3cd', '#833e72', '#671999', '#810038', '#6379ff', '#94789c', '#8ad08d']):
+    display(Markdown('**3D PCA Plot** <br> We will then normalize the dataset by first log transforming the raw counts and then dividing the results by the sum. The z-score is then calculated to represent the 500 most variable genes in a 3D PCA plot.'))
     width=900
     height=600
     data_norm = normalize_data(dataframe, filter_genes=True)
@@ -416,15 +416,9 @@ def run_enrichr(dataframe):
     # userlistid = dict_forloop(enrichr_results)
     for key, value in enrichr_results.items():
 
-        # For each ID, get the enrichment results
+        # For each ID, get the enrichment results, add column with geneset label and assign each geneset to 'upregulated' or 'downregulated'
         results = get_enrichment_results(value['userListId'])
         results['geneset'] = key
-
-    # add column with geneset label 
-    # Add the 'upregulated' or 'downregulated' label to the enrichment results  
-    # results.insert(6, 'genesets', 'downregulated')
-    # results.loc[3946:, 'genesets'] = 'upregulated'  
-    
 
     # Append the enrichment results to the empty list defined above
     my_results.append(results)
